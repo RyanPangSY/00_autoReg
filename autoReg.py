@@ -171,7 +171,6 @@ def main():
     date = "20" + date[0:2] + "-" + date[2:4] + "-" + date[4:6]
     print(date)
     url = equipmentDict[equipment][1]
-    # date = input("Enter the date you like to book (Format: YYYY-MM-DD): ")
     # lastName = input("Last Name: ")
     # firstName = input("First Name: ")
     # phoneNum = input("Phone Number (+852): ")
