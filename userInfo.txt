@@ -1,5 +1,5 @@
-Last Name: Pang
-First Name: Ryan
-Phone Number: 61389189
-Email: rpsy6138@connect.hku.hk
+Last Name: Chan
+First Name: Peter
+Phone Number: 12345678
+Email: xxxxxxxx@connect.hku.hk
 Content: Robocon
