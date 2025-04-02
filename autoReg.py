@@ -12,10 +12,16 @@ from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.support.wait import WebDriverWait
 import os
 import time
+from selenium.webdriver.common.action_chains import ActionChains
  
 # Get the path of chromedriver which you have install
- 
-def startBot(lastName, firstName, phoneNum, email, content, url, date):
+
+def startBot(lastName, firstName, phoneNum, email, content, url, date, month):
+
+    monthDict = {
+        1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June", 7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"    
+    }
+    inv_monthDict = {monthDict[k]: k for k in monthDict.keys()}
 
     service = Service()
     options = webdriver.ChromeOptions()
@@ -32,6 +38,18 @@ def startBot(lastName, firstName, phoneNum, email, content, url, date):
         # opening the website in chrome.
         driver.get(url)
         driver.implicitly_wait(10)
+
+        actual_month = driver.find_element(By.XPATH, "//div[@data-testid='monthView']/div/div/div/div/span").text.split(" ")[0]
+
+        print("Actual month: " + actual_month)
+        # test if the month is correct
+        if (inv_monthDict[actual_month] != month):
+            if (inv_monthDict[actual_month] < month):
+                driver.find_element(By.XPATH, "//button[@aria-label='Next Month']/span/svg").click()
+            else:
+                driver.find_element(By.XPATH, "//button[@aria-label='Previous Month']/span/svg").click()
+
+            continue
         
         while True:
             try:
@@ -75,7 +93,7 @@ def startBot(lastName, firstName, phoneNum, email, content, url, date):
 
         print("Clicked: " + date)
         print('\t', end='')
-        print(target_element)
+        # print(target_element)
 
         # target_element is a list containing the possible time slots
         target_elements = driver.find_elements(By.CLASS_NAME, "avl_slot-free")
@@ -109,10 +127,12 @@ def startBot(lastName, firstName, phoneNum, email, content, url, date):
         driver.implicitly_wait(1.5)
         driver.find_element(By.XPATH, "//div/textarea[@data-testid='JOB']").send_keys(content)
         driver.implicitly_wait(1.5)
-        driver.find_element(By.XPATH, "//span/div/input[@data-testid='Q8']").click()
+        driver.find_element(By.XPATH, "//div/div/input[@data-testid='Q8']").click()
         driver.implicitly_wait(1.5)
-        driver.find_element(By.XPATH, "//div[@data-testid='formContent']/form[1]/button[1]/span[1]").click()
+        ActionChains(driver).move_to_element(driver.find_element(By.XPATH, "//button[@data-testid='confirm_button']")).perform()
+        driver.find_element(By.XPATH, "//button[@data-testid='confirm_button']/span").click()
         driver.implicitly_wait(1.5)
+
 
         try:
             wait = WebDriverWait(driver, timeout=8, poll_frequency=1, ignored_exceptions=ignored_exceptions)
@@ -127,6 +147,8 @@ def startBot(lastName, firstName, phoneNum, email, content, url, date):
 def main():
     # Driver Code
     # Enter below your login credentials
+    file_path = os.path.join(os.path.dirname(__file__), 'userInfo.txt')
+
     equipmentDict = {
         # ProtoMAX abrasive waterjet cutting machine
         0: ["ProtoMAX abrasive waterjet cutting machine", "https://innowingwaterjet.ycb.me"],
@@ -134,7 +156,7 @@ def main():
         1: ["CNC milling machine", "https://innowingcncmilling.ycb.me"]
     }
 
-    f = open("userInfo.txt", "r")
+    f = open(file_path, "r")
     userInfo = f.readlines()
     for i in range(len(userInfo)):
         infoType = userInfo[i].split(": ")[0].strip()
@@ -168,6 +190,7 @@ def main():
             continue
     
     date = input("Date (Format: YYMMDD): ")
+    month = int(date[2:4].lstrip("0"))
     date = "20" + date[0:2] + "-" + date[2:4] + "-" + date[4:6]
     print(date)
     url = equipmentDict[equipment][1]
@@ -178,6 +201,6 @@ def main():
     # content = "Robocon"
     print("Please wait...")
 
-    startBot(lastName, firstName, phoneNum, email, content, url, date)
+    startBot(lastName, firstName, phoneNum, email, content, url, date, month)
 
 main()

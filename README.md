@@ -1,5 +1,5 @@
 # autoReg
-## The auto-clicker for Inno-wing Machine room booking system.
+The auto-clicker for Inno-wing Machine room booking system.
 
 ## Initializing
 The project requires `selenium` module
