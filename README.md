@@ -13,3 +13,8 @@ pip show selenium
 2. Run `python autoReg.py` and a terminal window pops up.
 3. Choose the machine that you wish to book and enter the date (in the format of *YYMMDD*).
 4. Let the code cook.
+
+## Update
+```
+git pull origin main 
+```
