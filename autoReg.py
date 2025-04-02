@@ -130,7 +130,14 @@ def startBot(lastName, firstName, phoneNum, email, content, url, date, month):
         driver.find_element(By.XPATH, "//div/div/input[@data-testid='Q8']").click()
         driver.implicitly_wait(1.5)
         ActionChains(driver).move_to_element(driver.find_element(By.XPATH, "//button[@data-testid='confirm_button']")).perform()
-        driver.find_element(By.XPATH, "//button[@data-testid='confirm_button']/span").click()
+        while True:
+            try:
+                driver.find_element(By.XPATH, "//button[@data-testid='confirm_button']/span").click()
+            except:
+                print("Fail to click the confirm button")
+                time.sleep(1)
+                continue
+            break
         driver.implicitly_wait(1.5)
 
 
