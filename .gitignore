@@ -2,3 +2,6 @@ assets/*
 userInfo.txt
 *.ico
 data/*
+__pycache__/
+*.pyc
+*.pyo
