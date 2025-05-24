@@ -1,7 +1,3 @@
-# Pre-requisite: install selenium
-# open terminal and input "pip install selenium" to install selenium
-
-# Used to import the webdriver from selenium
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -9,17 +5,15 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
-from selenium.webdriver.support.wait import WebDriverWait
-import os
-import time
 from selenium.webdriver.common.action_chains import ActionChains
- 
-# Get the path of chromedriver which you have install
+import time
+import threading
+import os
 
 def startBot(lastName, firstName, phoneNum, email, content, url, date, month):
-
     monthDict = {
-        1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June", 7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"    
+        1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
+        7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"
     }
     inv_monthDict = {monthDict[k]: k for k in monthDict.keys()}
 
@@ -27,96 +21,65 @@ def startBot(lastName, firstName, phoneNum, email, content, url, date, month):
     options = webdriver.ChromeOptions()
     driver = webdriver.Chrome(service=service, options=options)
     ignored_exceptions = (NoSuchElementException, StaleElementReferenceException,)
+    wait = WebDriverWait(driver, timeout=5, poll_frequency=1, ignored_exceptions=ignored_exceptions)
 
-
-    # giving the path of chromedriver to selenium webdriver
-    # driver = webdriver.Chrome(excutable_path = path)
-    
-    while (True):
-        wait = WebDriverWait(driver, timeout=5, poll_frequency=1, ignored_exceptions=ignored_exceptions)
-        
-        # opening the website in chrome.
+    while True:
         driver.get(url)
         driver.implicitly_wait(10)
 
-        actual_month = driver.find_element(By.XPATH, "//div[@data-testid='monthView']/div/div/div/div/span").text.split(" ")[0]
+        # Navigate to correct month
+        while True:
+            actual_month = driver.find_element(By.XPATH, "//div[@data-testid='monthView']/div/div/div/div/span").text.split(" ")[0]
+            if inv_monthDict[actual_month] != month:
+                if inv_monthDict[actual_month] < month:
+                    driver.find_element(By.XPATH, "//button[@aria-label='Next Month']").click()
+                else:
+                    driver.find_element(By.XPATH, "//button[@aria-label='Previous Month']").click()
+                driver.implicitly_wait(1)
+                continue
+            break
 
-        print("Actual month: " + actual_month)
-        # test if the month is correct
-        if (inv_monthDict[actual_month] != month):
-            if (inv_monthDict[actual_month] < month):
-                driver.find_element(By.XPATH, "//button[@aria-label='Next Month']/span/svg").click()
-            else:
-                driver.find_element(By.XPATH, "//button[@aria-label='Previous Month']/span/svg").click()
-
-            continue
-        
+        # Select date
+        date_id = f"20{date[0:2]}-{date[2:4]}-{date[4:6]}"  # e.g., 2025-05-01
         while True:
             try:
-                wait.until(EC.presence_of_element_located((By.XPATH, "//button[@id='" + date + "']")))
-                target_element = driver.find_element(By.XPATH, "//button[@id='" + date + "']")
-                print("Button located")
+                wait.until(EC.presence_of_element_located((By.XPATH, f"//button[@id='{date_id}']")))
                 time.sleep(1)
+                target_element = driver.find_element(By.XPATH, f"//button[@id='{date_id}']")
+                print(f"Thread {date}: Button located for {date_id}")
                 target_element.click()
                 break
             except:
-                print("Fail to locate the button...")
+                print(f"Thread {date}: Failed to locate button for {date_id}...")
 
-        # driver.execute_script("var ele = arguments[0];ele.addEventListener('click', function() {ele.setAttribute('automationTrack','false');});",target_element)
-
-        # while not target_element.get_attribute("automationTrack"):
-        #     target_element.click()
-        #     driver.execute_script("var ele = arguments[0];ele.addEventListener('click', function() {ele.setAttribute('automationTrack','false');});",target_element)
-        # print("First clicked: okay")
-
-        # track if the element is clicked
-        # driver.execute_script("var ele = arguments[0];ele.addEventListener('click', function() {ele.setAttribute('automationTrack','true');});", target_element)
-
-        # print("Clicked: " + str(target_element.get_attribute("automationTrack")))
-        # while not target_element.get_attribute("automationTrack"):
-        #     print("Failed to click: " + date)
-        #     target_element = driver.find_elements(By.ID, date)
-        #     target_element[0].click()
-        #     time.sleep(1)
-        
-        # element = driver.find_element(By.ID, date)
-        # if element: break
-
+        # Select time slot
         try:
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.avl_slot-free')))
         except:
-            if not EC.presence_of_element_located((By.CSS_SELECTOR, 'button.avl_slot-free')):
-                target_element = driver.find_element(By.ID, date)
-                target_element.click()
-            print("Fail to proceed...")
+            print(f"Thread {date}: Failed to find time slot for {date_id}...")
             return
 
-        print("Clicked: " + date)
-        print('\t', end='')
-        # print(target_element)
-
-        # target_element is a list containing the possible time slots
+        print(f"Thread {date}: Clicked date {date_id}")
         target_elements = driver.find_elements(By.CLASS_NAME, "avl_slot-free")
-        # module__slot_column___2m3E8 
-        print("Possible time slot: " + str(len(target_elements)))
+        print(f"Thread {date}: Possible time slots: {len(target_elements)}")
+
+        if not target_elements:
+            print(f"Thread {date}: No time slots available for {date_id}")
+            return
 
         time_slot = target_elements[0]
-        print('\t', end='')
-        print(time_slot)
         time_slot.click()
-        # wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'div._questionSelect_14epn_7')))
-        wait.until(EC.presence_of_element_located((By.XPATH, '//div/div/select[@data-testid="Q5"]')))
-        print("Found select")
 
-        # Select the project
+        # Select project
+        wait.until(EC.presence_of_element_located((By.XPATH, '//div/div/select[@data-testid="Q5"]')))
+        print(f"Thread {date}: Found project select")
         project = driver.find_element(By.XPATH, '//div/div/select[@data-testid="Q5"]')
         project.click()
-        # hard code to select the 8th option
         project_select = project.find_elements(By.TAG_NAME, 'option')[8]
         project_select.click()
         project.click()
 
-        # Member information
+        # Enter member information
         driver.find_element(By.XPATH, "//div/input[@data-testid='LNAME']").send_keys(lastName)
         driver.implicitly_wait(1.5)
         driver.find_element(By.XPATH, "//div/input[@data-testid='FNAME']").send_keys(firstName)
@@ -130,64 +93,64 @@ def startBot(lastName, firstName, phoneNum, email, content, url, date, month):
         driver.find_element(By.XPATH, "//div/div/input[@data-testid='Q8']").click()
         driver.implicitly_wait(1.5)
         ActionChains(driver).move_to_element(driver.find_element(By.XPATH, "//button[@data-testid='confirm_button']")).perform()
+
+        # Submit form
         while True:
             try:
                 driver.find_element(By.XPATH, "//button[@data-testid='confirm_button']/span").click()
+                break
             except:
-                print("Fail to click the confirm button")
-                time.sleep(1)
-                continue
-            break
-        driver.implicitly_wait(1.5)
-
+                print(f"Thread {date}: Failed to click confirm button")
+                driver.implicitly_wait(0.5)
 
         try:
             wait = WebDriverWait(driver, timeout=8, poll_frequency=1, ignored_exceptions=ignored_exceptions)
             wait.until(EC.presence_of_element_located((By.XPATH, "//div[@data-testid='bookingInformation']")))
-            print("Submitted successfully")
+            print(f"Thread {date}: Submitted successfully for {date_id}")
+            if len(target_elements) == 1: break  # Exit if only no time slot was available
         except:
-            print("Failed to submit...")
+            print(f"Thread {date}: Failed to submit for {date_id}...")
+    
+    driver.quit()
 
-        driver.implicitly_wait(10)
+def register_multiple_dates(lastName, firstName, phoneNum, email, content, url, dates, month):
+    threads = []
+    for date in dates:
+        thread = threading.Thread(
+            target=startBot,
+            args=(lastName, firstName, phoneNum, email, content, url, date, month)
+        )
+        threads.append(thread)
+        thread.start()
 
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
 
 def main():
     # Driver Code
-    # Enter below your login credentials
     file_path = os.path.join(os.path.dirname(__file__), 'userInfo.txt')
-
     equipmentDict = {
-        # ProtoMAX abrasive waterjet cutting machine
         0: ["ProtoMAX abrasive waterjet cutting machine", "https://innowingwaterjet.ycb.me"],
-        # CNC milling machine
         1: ["CNC milling machine", "https://innowingcncmilling.ycb.me"]
     }
 
-    f = open(file_path, "r")
-    userInfo = f.readlines()
-    for i in range(len(userInfo)):
-        infoType = userInfo[i].split(": ")[0].strip()
-        data = userInfo[i].split(": ")[1].strip()
-        print('{0: >15}'.format(infoType) + ": " + data)
+    # Load user info
+    user_info = {}
+    try:
+        with open(file_path, "r") as f:
+            lines = f.readlines()
+            for line in lines:
+                info_type, data = map(str.strip, line.split(": ", 1))
+                user_info[info_type] = data
+                print(f"{info_type: >15}: {data}")
+    except FileNotFoundError:
+        print("userInfo.txt not found.")
+        return
 
-        # input data to the corresponding variable
-        match infoType:
-            case "Last Name":
-                lastName = data
-            case "First Name":
-                firstName = data
-            case "Phone Number":
-                phoneNum = data
-            case "Email":
-                email = data
-            case "Content":
-                content = data
-            case _:
-                print("Invalid data")
-    f.close()
-
+    # Equipment selection
     for key in equipmentDict:
-        print("[" + str(key) + "]: " + equipmentDict[key][0])
+        print(f"[{key}]: {equipmentDict[key][0]}")
     equipment = -1
     while equipment not in equipmentDict:
         equipment = input("Equipment: ")
@@ -195,19 +158,23 @@ def main():
             equipment = int(equipment)
         except:
             continue
-    
-    date = input("Date (Format: YYMMDD): ")
-    month = int(date[2:4].lstrip("0"))
-    date = "20" + date[0:2] + "-" + date[2:4] + "-" + date[4:6]
-    print(date)
+
+    # Date input for testing
+    dates = input("Dates (comma-separated, Format: YYMMDD, e.g., 250501,250503): ").split(",")
+    dates = [date.strip() for date in dates]
+    month = int(dates[0][2:4].lstrip("0"))
     url = equipmentDict[equipment][1]
-    # lastName = input("Last Name: ")
-    # firstName = input("First Name: ")
-    # phoneNum = input("Phone Number (+852): ")
-    # email = input("HKU Email: ")
-    # content = "Robocon"
-    print("Please wait...")
 
-    startBot(lastName, firstName, phoneNum, email, content, url, date, month)
+    register_multiple_dates(
+        lastName=user_info.get("Last Name", ""),
+        firstName=user_info.get("First Name", ""),
+        phoneNum=user_info.get("Phone Number", ""),
+        email=user_info.get("Email", ""),
+        content=user_info.get("Content", ""),
+        url=url,
+        dates=dates,
+        month=month
+    )
 
-main()
+if __name__ == "__main__":
+    main()
