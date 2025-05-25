@@ -5,6 +5,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 import time
 import threading
@@ -21,11 +22,21 @@ def startBot(lastName, firstName, phoneNum, email, content, url, date, month):
     options = webdriver.ChromeOptions()
     driver = webdriver.Chrome(service=service, options=options)
     ignored_exceptions = (NoSuchElementException, StaleElementReferenceException,)
-    wait = WebDriverWait(driver, timeout=5, poll_frequency=1, ignored_exceptions=ignored_exceptions)
+    wait = WebDriverWait(driver, timeout=2, poll_frequency=1, ignored_exceptions=ignored_exceptions)
+    cookie_consent = False  # Flag to track if cookie consent has been clicked
 
     while True:
         driver.get(url)
         driver.implicitly_wait(10)
+
+        if cookie_consent:
+            try:
+                wait.until(EC.presence_of_element_located((By.XPATH, "//div[@data-testid='cookie_consent']/div/p/button")))
+                driver.find_element(By.XPATH, "//div[@data-testid='cookie_consent']/div/p/button").click()
+                time.sleep(0.2)
+                cookie_consent = False  # Set to False after clicking the button
+            except (NoSuchElementException, StaleElementReferenceException, TimeoutException):
+                print("Cookie consent button not found or already clicked.")
 
         # Navigate to correct month
         while True:
@@ -41,22 +52,26 @@ def startBot(lastName, firstName, phoneNum, email, content, url, date, month):
 
         # Select date
         date_id = f"20{date[0:2]}-{date[2:4]}-{date[4:6]}"  # e.g., 2025-05-01
-        while True:
+        for i in range(3):
             try:
                 wait.until(EC.presence_of_element_located((By.XPATH, f"//button[@id='{date_id}']")))
                 time.sleep(1)
                 target_element = driver.find_element(By.XPATH, f"//button[@id='{date_id}']")
-                print(f"Thread {date}: Button located for {date_id}")
+                print(f"Thread {date_id}: Button located for {date_id}")
                 target_element.click()
                 break
             except:
-                print(f"Thread {date}: Failed to locate button for {date_id}...")
+                print(f"Thread {date_id}: Failed to locate button for {date_id}...")
+                if i == 2:
+                    driver.quit()
+                    return # Exit after 3 attempts
 
         # Select time slot
         try:
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.avl_slot-free')))
         except:
-            print(f"Thread {date}: Failed to find time slot for {date_id}...")
+            print(f"Thread {date_id}: Failed to find time slot for {date_id}...")
+            driver.quit()
             return
 
         print(f"Thread {date}: Clicked date {date_id}")

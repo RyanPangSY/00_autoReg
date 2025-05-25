@@ -4,12 +4,14 @@ from calendar import monthrange, month_name
 from datetime import datetime
 import yaml
 import os
+import time
+import datetime
+from threading import Thread
 from autoReg import register_multiple_dates
-from dataExtract import extractData
+from dataExtract import DataExtractor # Ensure this is the correct import path for your data extraction function
 
 class CalendarApp:
     def __init__(self, root, year=2025):
-        # extractData()  # Ensure date.yaml is populated before initializing the app
         self.root = root
         self.year = year
         self.months = []  # List of month names from date.yaml
@@ -19,11 +21,26 @@ class CalendarApp:
         self.buttons = {}  # Dictionary to store date buttons/labels
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(expand=True, pady=5)  # Reduced pady
-        # Load availability data from YAML
+        self.refreshing_data = False
+        self.last_refreshed_time = str(datetime.datetime.now()).split(".")[0]
+        self.monthDict = {
+            1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
+            7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"
+        }
+        self.inv_monthDict = {self.monthDict[k]: k for k in self.monthDict.keys()}
+        # Equipment dictionary
+        self.equipment_dict = {
+            0: ["ProtoMAX abrasive waterjet cutting machine", "https://innowingwaterjet.ycb.me"],
+            1: ["CNC milling machine", "https://innowingcncmilling.ycb.me"]
+        }
+        self.cnc_var = tk.IntVar(value=0)
+        # Load availability data from DataExtractor
+        self.extractor = DataExtractor()
+        self.date_multiple_data = self.extractor.extractMultipleData()  # Call the data extraction function
         self.availability_data = self.load_availability_data()
         # Set up window and styles
-        self.root.title(f"Calendar - {self.months[self.month_index]} {self.year}")
-        self.root.geometry("400x450")  # Adjusted height
+        self.root.title(f"Calendar - {self.monthDict[self.months[self.month_index]]} {self.year}")
+        self.root.geometry("450x450")
         self.root.resizable(False, False)  # Fix window size
         # Create styles for rounded square buttons and labels
         style = ttk.Style()
@@ -33,6 +50,12 @@ class CalendarApp:
                         background="#90EE90",  # Green for available
                         padding=6,
                         font=("Arial", 10))
+        style.configure("Bold.TButton",
+                        borderwidth=2,
+                        relief="flat",
+                        background="#90EE90",  # Green for available
+                        padding=6,
+                        font=("Arial", 10, 'bold'))
         style.configure("Selected.TButton",
                         borderwidth=2,
                         relief="sunken",
@@ -40,6 +63,8 @@ class CalendarApp:
                         padding=6,
                         font=("Arial", 10))
         style.map("Rounded.TButton",
+                  background=[("active", "#87CEEB")])  # Blue for hover
+        style.map("Bold.TButton",
                   background=[("active", "#87CEEB")])  # Blue for hover
         style.map("Selected.TButton",
                   background=[("active", "#87CEEB")])  # Blue for hover
@@ -52,30 +77,40 @@ class CalendarApp:
             "relief": "flat"
         }
         # Checkbox variables
-        self.waterjet_var = tk.IntVar(value=0)
-        self.cnc_var = tk.IntVar(value=0)
+        self.waterjet_var = tk.IntVar(value=1)
         # Initial calendar setup
         self.update_calendar()
 
+    def extract_data(self):
+        self.date_data = self.extractor.extractMultipleData()  # Call the data extraction function
+
     def load_availability_data(self):
+        # Check equipment selection
         try:
-            with open('data/date.yaml', 'r') as file:
-                data = yaml.safe_load(file)
-                if not data:
-                    print("date.yaml is empty, using empty availability data.")
-                    return {}
-                # Get list of months
-                self.months = list(data.keys())
-                if not self.months:
-                    print("No months found in date.yaml.")
-                    return {}
-                # Set initial month
-                self.month_index = 0
-                self.month = self.months[0]
-                return data
-        except FileNotFoundError:
-            print("date.yaml not found, using empty availability data.")
+            if self.waterjet_var.get():
+                equipment = 0  # ProtoMAX Waterjet
+            elif self.cnc_var.get():
+                equipment = 1  # CNC Milling
+            else:
+                print("Please select an equipment (ProtoMAX Waterjet or CNC Milling).")
+                return
+        except AttributeError as e:
+            print(f"Error in equipment selection: {e}")
+            print("Defaulting to ProtoMAX Waterjet.")
+            equipment = 0  # Default to ProtoMAX Waterjet if selection fails
+
+        if not self.date_multiple_data[equipment]:
+            print("data cannot be obtained, using empty availability data.")
             return {}
+        # Get list of months
+        self.months = list(self.date_multiple_data[equipment].keys())
+        if not self.months:
+            print("No months found in the data obtained, using empty availability data.")
+            return {}
+        # Set initial month
+        self.month_index = 0
+        self.month = self.months[0]
+        return self.date_multiple_data[equipment]
 
     def update_calendar(self):
         # Clear existing widgets in main_frame
@@ -83,8 +118,8 @@ class CalendarApp:
             widget.destroy()
 
         # Update window title
-        current_month_name = self.months[self.month_index]
-        self.root.title(f"Calendar - {current_month_name} {self.year}")
+        current_month_name = self.monthDict[self.months[self.month_index]]
+        self.root.title(f"Auto Booking - {current_month_name} {self.year}")
 
         # Header: Month and Year
         header = tk.Label(self.main_frame, text=f"{current_month_name} {self.year}", font=("Arial", 14, "bold"))
@@ -106,7 +141,7 @@ class CalendarApp:
         self.buttons.clear()
 
         # Get availability for current month
-        availability = self.availability_data.get(current_month_name, [False])
+        availability = self.availability_data.get(self.inv_monthDict[current_month_name], [False])
 
         # Create date buttons or labels
         for day in range(1, num_days + 1):
@@ -118,7 +153,7 @@ class CalendarApp:
                 btn = ttk.Button(
                     self.main_frame,
                     text=str(day),
-                    width=5,
+                    width=4,
                     style=style_name,
                     command=lambda d=day: self.toggle_date(d)
                 )
@@ -141,15 +176,6 @@ class CalendarApp:
                 col = 0
                 row += 1
 
-        # Label to display selected dates
-        selected_text = f"Selected Dates: {', '.join(str(day) for day in sorted(self.selected_dates))}" if self.selected_dates else "Selected Dates: None"
-        selected_label = tk.Label(self.main_frame, text=selected_text, wraplength=350, font=("Arial", 10))
-        selected_label.grid(row=row + 1, column=0, columnspan=7, pady=3)  # Reduced pady
-
-        # Note about availability, centered with smaller font
-        note_label = tk.Label(self.main_frame, text="Green: Available, Gray: Unavailable", font=("Arial", 8))
-        note_label.grid(row=row + 2, column=0, columnspan=7, pady=3)  # Reduced pady
-
         # Month navigation button
         button_text = "Next Month" if self.month_index < len(self.months) - 1 else "Previous Month"
         button_command = self.next_month if self.month_index < len(self.months) - 1 else self.previous_month
@@ -159,7 +185,16 @@ class CalendarApp:
             style="Rounded.TButton",
             command=button_command
         )
-        month_button.grid(row=row + 3, column=0, columnspan=7, pady=3)  # Reduced pady
+        month_button.grid(row=row + 1, column=0, columnspan=7, pady=3)  # Reduced pady
+
+        # Note about availability, centered with smaller font
+        note_label = tk.Label(self.main_frame, text="Green: Available, Gray: Unavailable", font=("Arial", 8))
+        note_label.grid(row=row + 2, column=0, columnspan=7, pady=3)  # Reduced pady
+
+        # Label to display selected dates
+        selected_text = f"Selected Dates: {', '.join(str(day) for day in sorted(self.selected_dates))}" if self.selected_dates else "Selected Dates: None"
+        selected_label = tk.Label(self.main_frame, text=selected_text, wraplength=350, font=("Arial", 10))
+        selected_label.grid(row=row + 3, column=0, columnspan=7, pady=3)  # Reduced pady
 
         # Equipment selection checkboxes
         checkbox_frame = tk.Frame(self.main_frame)
@@ -183,20 +218,41 @@ class CalendarApp:
         register_button = ttk.Button(
             self.main_frame,
             text="Register",
-            style="Rounded.TButton",
+            style="Bold.TButton",
             command=self.register
         )
         register_button.grid(row=row + 5, column=0, columnspan=7, pady=3)  # Reduced pady
+
+        refresh_button = ttk.Button(
+            self.main_frame,
+            text="Refresh",
+            style="Rounded.TButton",
+            command=self.refresh_data
+        )
+        refresh_button.grid(row=row + 6, column=0, columnspan=7, pady=0)  # Reduced pady
+        refreshing_label = tk.Label(self.main_frame, fg="green", text="Refreshing data" if self.refreshing_data else f"Last refreshed at: {self.last_refreshed_time}", font=("Arial", 8))
+        refreshing_label.grid(row=row + 7, column=0, columnspan=7, pady=0)  # Reduced pady
 
     def select_waterjet(self):
         # Ensure only one checkbox is selected
         if self.waterjet_var.get():
             self.cnc_var.set(0)
+        else:
+            self.waterjet_var.set(1)  # Re-select if deselected, to maintain state
+            return # Do nothing if waterjet is deselected
+        self.availability_data = self.load_availability_data()
+        self.update_calendar()
+
 
     def select_cnc(self):
         # Ensure only one checkbox is selected
         if self.cnc_var.get():
             self.waterjet_var.set(0)
+        else:
+            self.cnc_var.set(1)
+            return # Do nothing if CNC is deselected
+        self.availability_data = self.load_availability_data()
+        self.update_calendar()
 
     def on_enter(self, day):
         # Change to blue on hover (only for buttons)
@@ -240,6 +296,22 @@ class CalendarApp:
             self.selected_dates.clear()
             self.update_calendar()
 
+    def refresh_data(self):
+        if self.refreshing_data:
+            print("Data is already being refreshed.")
+            return
+        self.refreshing_data = True
+        print("refreshing_data:", self.refreshing_data)
+        self.update_calendar()
+        time.sleep(1)  # Optional delay to show refreshing state
+        # Call extractData to refresh availability data (for multiple months)
+        self.date_multiple_data = self.extractor.extractMultipleData()  # Call the data extraction function
+        self.availability_data = self.load_availability_data()
+        self.refreshing_data = False
+        # Update last refreshed time
+        self.last_refreshed_time = str(datetime.datetime.now()).split(".")[0]
+        self.update_calendar()
+
     def register(self):
         if not self.selected_dates:
             print("No dates selected for registration.")
@@ -267,12 +339,6 @@ class CalendarApp:
             print("userInfo.txt not found.")
             return
 
-        # Equipment dictionary
-        equipment_dict = {
-            0: ["ProtoMAX abrasive waterjet cutting machine", "https://innowingwaterjet.ycb.me"],
-            1: ["CNC milling machine", "https://innowingcncmilling.ycb.me"]
-        }
-
         # Convert selected dates to YYMMDD format
         dates = []
         for day in self.selected_dates:
@@ -280,14 +346,14 @@ class CalendarApp:
             dates.append(date_str)
 
         # Call register_multiple_dates from autoReg.py
-        print(f"Starting registration for {equipment_dict[equipment][0]}...")
+        print(f"Starting registration for {self.equipment_dict[equipment][0]}...")
         register_multiple_dates(
             lastName=user_info.get("Last Name", ""),
             firstName=user_info.get("First Name", ""),
             phoneNum=user_info.get("Phone Number", ""),
             email=user_info.get("Email", ""),
             content=user_info.get("Content", ""),
-            url=equipment_dict[equipment][1],
+            url=self.equipment_dict[equipment][1],
             dates=dates,
             month=self.month
         )
