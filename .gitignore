@@ -6,3 +6,4 @@ __pycache__/
 *.pyo
 userInfo.txt
 tempCodeRunnerFile.py
+.gitignore

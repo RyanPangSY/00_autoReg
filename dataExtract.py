@@ -8,7 +8,9 @@ from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.support.wait import WebDriverWait
 import time
 from threading import Thread
+import logging
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class ReturnableThread(Thread):
     # This class is a subclass of Thread that allows the thread to return a value.
@@ -39,17 +41,18 @@ class DataExtractor:
         self.service = Service()
         self.options = webdriver.ChromeOptions()
         self.options.add_argument("--headless")  # Run in headless mode
-        self.options.add_argument("--no-sandbox")
-        self.options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
+        # self.options.add_argument("--no-sandbox")
+        # self.options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
         self.driver = webdriver.Chrome(service=self.service, options=self.options)
         self.div_xpath = "//div[@data-testid='selectTimeScreenCalendar']/div/div/div/div/div/div"
-        print("Extractor initialized")
+        logging.info("Extractor initialized")
 
     def extractData(self, equipmentIndex=0):
         ignored_exceptions = (NoSuchElementException, StaleElementReferenceException,)
-        wait = WebDriverWait(self.driver, timeout=2, poll_frequency=1, ignored_exceptions=ignored_exceptions)
+        wait = WebDriverWait(self.driver, timeout=1, poll_frequency=0.2, ignored_exceptions=ignored_exceptions)
 
         self.driver.get(self.equipmentDict[equipmentIndex][1])
+        logging.info(f"Loading equipment page: {self.equipmentDict[equipmentIndex][1]}")
         self.driver.implicitly_wait(1)
 
         # finding the select time calendar element and extracting the data
@@ -66,22 +69,23 @@ class DataExtractor:
 
         date_available_list_next_month= [False]
         try:
-            # driver.find_element(By.XPATH, "//button[@aria-label='Next Month']").click()
             self.driver.execute_script("arguments[0].click();", wait.until(EC.element_to_be_clickable((By.XPATH, "//button[@aria-label='Next Month']"))))
             self.driver.implicitly_wait(1)
+            time.sleep(1)  # wait for the next month calendar to load
             wait.until(EC.presence_of_element_located((By.XPATH, self.div_xpath + "/button")))
-            time.sleep(3)  # wait for the next month calendar to load
             next_month = self.driver.find_element(By.XPATH, "//div[@data-testid='monthView']/div/div/div/div/span").text.split(" ")[0]
             calendar_data_next_month = self.driver.find_elements(By.XPATH, self.div_xpath + "/button")
             for date_div in calendar_data_next_month:
                 date_available_list_next_month.append(date_div.get_attribute("aria-disabled") == "false")
         except NoSuchElementException:
             date_available_list_next_month = []
-            print("No next month button found, assuming end of calendar.")
+            logging.info("No next month button found, assuming end of calendar.")
+        logging.info("Quitting Selenium driver.")
         self.driver.quit()
+        logging.info(f"Data extraction completed for {self.equipmentDict[equipmentIndex][0]}.")
 
         # for i in range(1, len(calendar_data)+1):
-        #     print("Date:", i, "\tAvailable:", data_available_list[i])
+        #     logging.info("Date: %s\tAvailable: %s", i, data_available_list[i])
         
         return {self.inv_monthDict[current_month]: date_available_list, self.inv_monthDict[next_month]: date_available_list_next_month}
     
@@ -89,10 +93,10 @@ class DataExtractor:
         threads = []
         results = {}
         for i in range(len(self.equipmentDict)):
-            print(f"Starting thread for {self.equipmentDict[i][0]}...")
+            logging.info(f"Starting thread for {self.equipmentDict[i][0]}...")
             extractor = DataExtractor()
             thread = ReturnableThread(target=extractor.extractData, args=i)
-            print("Obtaining date availability for", self.equipmentDict[i][0], 'from the website...')
+            logging.info(f"Obtaining date availability for {self.equipmentDict[i][0]} from the website...")
             thread.start()
             threads.append(thread)
 
@@ -106,11 +110,15 @@ class DataExtractor:
 
         return results
 
-
 def main():
     extractor = DataExtractor()
     extracted_data = extractor.extractMultipleData()
-    print("Extracted Data:", extracted_data)
+    logging.info("Extracted Data: %s", extracted_data)
 
 if __name__ == "__main__":
-    main()
+    logging.info("Starting DataExtractor main()")
+    try:
+        main()
+        logging.info("DataExtractor main() finished successfully.")
+    except Exception as e:
+        logging.exception(f"Exception occurred in DataExtractor main(): {e}")

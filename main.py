@@ -7,8 +7,11 @@ import os
 import time
 import datetime
 from threading import Thread
-from autoReg import register_multiple_dates
+from autoReg import AutoRegistor
 from dataExtract import DataExtractor # Ensure this is the correct import path for your data extraction function
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class CalendarApp:
     def __init__(self, root, year=2025):
@@ -38,6 +41,8 @@ class CalendarApp:
         self.extractor = DataExtractor()
         self.date_multiple_data = self.extractor.extractMultipleData()  # Call the data extraction function
         self.availability_data = self.load_availability_data()
+        # Initialize AutoRegistor
+        self.registor = AutoRegistor()
         # Set up window and styles
         self.root.title(f"Calendar - {self.monthDict[self.months[self.month_index]]} {self.year}")
         self.root.geometry("450x450")
@@ -92,20 +97,20 @@ class CalendarApp:
             elif self.cnc_var.get():
                 equipment = 1  # CNC Milling
             else:
-                print("Please select an equipment (ProtoMAX Waterjet or CNC Milling).")
+                logging.warning("Please select an equipment (ProtoMAX Waterjet or CNC Milling).")
                 return
         except AttributeError as e:
-            print(f"Error in equipment selection: {e}")
-            print("Defaulting to ProtoMAX Waterjet.")
+            logging.error(f"Error in equipment selection: {e}")
+            logging.info("Defaulting to ProtoMAX Waterjet.")
             equipment = 0  # Default to ProtoMAX Waterjet if selection fails
 
         if not self.date_multiple_data[equipment]:
-            print("data cannot be obtained, using empty availability data.")
+            logging.warning("data cannot be obtained, using empty availability data.")
             return {}
         # Get list of months
         self.months = list(self.date_multiple_data[equipment].keys())
         if not self.months:
-            print("No months found in the data obtained, using empty availability data.")
+            logging.warning("No months found in the data obtained, using empty availability data.")
             return {}
         # Set initial month
         self.month_index = 0
@@ -185,20 +190,20 @@ class CalendarApp:
             style="Rounded.TButton",
             command=button_command
         )
-        month_button.grid(row=row + 1, column=0, columnspan=7, pady=3)  # Reduced pady
+        month_button.grid(row=row + 1, column=5, columnspan=2, pady=(2,10))  # Reduced pady
 
         # Note about availability, centered with smaller font
         note_label = tk.Label(self.main_frame, text="Green: Available, Gray: Unavailable", font=("Arial", 8))
-        note_label.grid(row=row + 2, column=0, columnspan=7, pady=3)  # Reduced pady
+        note_label.grid(row=row + 1, column=0, columnspan=3, pady=(2,10))  # Reduced pady
 
         # Label to display selected dates
         selected_text = f"Selected Dates: {', '.join(str(day) for day in sorted(self.selected_dates))}" if self.selected_dates else "Selected Dates: None"
         selected_label = tk.Label(self.main_frame, text=selected_text, wraplength=350, font=("Arial", 10))
-        selected_label.grid(row=row + 3, column=0, columnspan=7, pady=3)  # Reduced pady
+        selected_label.grid(row=row + 2, column=0, columnspan=7, pady=(0,2))  # Reduced pady
 
         # Equipment selection checkboxes
         checkbox_frame = tk.Frame(self.main_frame)
-        checkbox_frame.grid(row=row + 4, column=0, columnspan=7, pady=3)  # Reduced pady
+        checkbox_frame.grid(row=row + 3, column=0, columnspan=7, pady=(0,2))  # Reduced pady
         tk.Checkbutton(
             checkbox_frame,
             text="ProtoMAX Waterjet",
@@ -221,7 +226,7 @@ class CalendarApp:
             style="Bold.TButton",
             command=self.register
         )
-        register_button.grid(row=row + 5, column=0, columnspan=7, pady=3)  # Reduced pady
+        register_button.grid(row=row + 4, column=0, columnspan=7, pady=(0,10))  # Reduced pady
 
         refresh_button = ttk.Button(
             self.main_frame,
@@ -229,14 +234,15 @@ class CalendarApp:
             style="Rounded.TButton",
             command=self.refresh_data
         )
-        refresh_button.grid(row=row + 6, column=0, columnspan=7, pady=0)  # Reduced pady
+        refresh_button.grid(row=row + 5, column=0, columnspan=7, pady=0)  # Reduced pady
         refreshing_label = tk.Label(self.main_frame, fg="green", text="Refreshing data" if self.refreshing_data else f"Last refreshed at: {self.last_refreshed_time}", font=("Arial", 8))
-        refreshing_label.grid(row=row + 7, column=0, columnspan=7, pady=0)  # Reduced pady
+        refreshing_label.grid(row=row + 6, column=0, columnspan=7, pady=0)  # Reduced pady
 
     def select_waterjet(self):
         # Ensure only one checkbox is selected
         if self.waterjet_var.get():
             self.cnc_var.set(0)
+            self.selected_dates.clear()
         else:
             self.waterjet_var.set(1)  # Re-select if deselected, to maintain state
             return # Do nothing if waterjet is deselected
@@ -248,6 +254,7 @@ class CalendarApp:
         # Ensure only one checkbox is selected
         if self.cnc_var.get():
             self.waterjet_var.set(0)
+            self.selected_dates.clear()
         else:
             self.cnc_var.set(1)
             return # Do nothing if CNC is deselected
@@ -298,10 +305,10 @@ class CalendarApp:
 
     def refresh_data(self):
         if self.refreshing_data:
-            print("Data is already being refreshed.")
+            logging.info("Data is already being refreshed.")
             return
         self.refreshing_data = True
-        print("refreshing_data:", self.refreshing_data)
+        logging.info("refreshing_data: %s", self.refreshing_data)
         self.update_calendar()
         time.sleep(1)  # Optional delay to show refreshing state
         # Call extractData to refresh availability data (for multiple months)
@@ -314,7 +321,7 @@ class CalendarApp:
 
     def register(self):
         if not self.selected_dates:
-            print("No dates selected for registration.")
+            logging.warning("No dates selected for registration.")
             return
 
         # Check equipment selection
@@ -323,7 +330,7 @@ class CalendarApp:
         elif self.cnc_var.get():
             equipment = 1  # CNC Milling
         else:
-            print("Please select an equipment (ProtoMAX Waterjet or CNC Milling).")
+            logging.warning("Please select an equipment (ProtoMAX Waterjet or CNC Milling).")
             return
 
         # Load user info from userInfo.txt
@@ -336,7 +343,7 @@ class CalendarApp:
                     info_type, data = map(str.strip, line.split(": ", 1))
                     user_info[info_type] = data
         except FileNotFoundError:
-            print("userInfo.txt not found.")
+            logging.error("userInfo.txt not found.")
             return
 
         # Convert selected dates to YYMMDD format
@@ -345,9 +352,9 @@ class CalendarApp:
             date_str = f"25{self.month:02d}{day:02d}"  # e.g., 250501 for May 1, 2025
             dates.append(date_str)
 
-        # Call register_multiple_dates from autoReg.py
-        print(f"Starting registration for {self.equipment_dict[equipment][0]}...")
-        register_multiple_dates(
+        # Use AutoRegistor object to register
+        logging.info(f"Starting registration for {self.equipment_dict[equipment][0]}...")
+        self.registor.register_multiple_dates(
             lastName=user_info.get("Last Name", ""),
             firstName=user_info.get("First Name", ""),
             phoneNum=user_info.get("Phone Number", ""),
@@ -361,6 +368,7 @@ class CalendarApp:
 def main():
     root = tk.Tk()
     app = CalendarApp(root)
+    root.iconbitmap("autoReg_icon.ico")
     root.mainloop()
 
 if __name__ == "__main__":
