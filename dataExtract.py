@@ -5,6 +5,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.wait import WebDriverWait
 import time
 from threading import Thread
@@ -41,8 +42,11 @@ class DataExtractor:
         self.service = Service()
         self.options = webdriver.ChromeOptions()
         self.options.add_argument("--headless")  # Run in headless mode
-        # self.options.add_argument("--no-sandbox")
-        # self.options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
+        self.options.add_argument("--disable-logging")
+        self.options.add_argument("--disable-dev-shm-usage")
+        self.options.add_argument("--no-sandbox")
+        self.options.add_argument("--disable-gpu")
+        self.options.add_argument("--disable-extensions")
         self.driver = webdriver.Chrome(service=self.service, options=self.options)
         self.div_xpath = "//div[@data-testid='selectTimeScreenCalendar']/div/div/div/div/div/div"
         logging.info("Extractor initialized")
@@ -68,6 +72,7 @@ class DataExtractor:
             date_available_list.append(date_div.get_attribute("aria-disabled") == "false")
 
         date_available_list_next_month= [False]
+        next_month = None
         try:
             self.driver.execute_script("arguments[0].click();", wait.until(EC.element_to_be_clickable((By.XPATH, "//button[@aria-label='Next Month']"))))
             self.driver.implicitly_wait(1)
@@ -77,7 +82,7 @@ class DataExtractor:
             calendar_data_next_month = self.driver.find_elements(By.XPATH, self.div_xpath + "/button")
             for date_div in calendar_data_next_month:
                 date_available_list_next_month.append(date_div.get_attribute("aria-disabled") == "false")
-        except NoSuchElementException:
+        except (NoSuchElementException, TimeoutException,):
             date_available_list_next_month = []
             logging.info("No next month button found, assuming end of calendar.")
         logging.info("Quitting Selenium driver.")
@@ -87,11 +92,24 @@ class DataExtractor:
         # for i in range(1, len(calendar_data)+1):
         #     logging.info("Date: %s\tAvailable: %s", i, data_available_list[i])
         
-        return {self.inv_monthDict[current_month]: date_available_list, self.inv_monthDict[next_month]: date_available_list_next_month}
+        result = {self.inv_monthDict[current_month]: date_available_list}
+        if next_month:
+            result[self.inv_monthDict[next_month]] = date_available_list_next_month
+        
+        return result
     
     def extractMultipleData(self):
         threads = []
         results = {}
+
+        ### Loop version
+        # for i in range(len(self.equipmentDict)):
+        #     logging.info(f"Starting data extraction for {self.equipmentDict[i][0]}...")
+        #     extractor = DataExtractor()
+        #     results[i] = extractor.extractData(i)
+        #     logging.info(f"Obtained date availability for {self.equipmentDict[i][0]} from the website.")
+
+        ### Thread version
         for i in range(len(self.equipmentDict)):
             logging.info(f"Starting thread for {self.equipmentDict[i][0]}...")
             extractor = DataExtractor()

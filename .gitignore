@@ -1,9 +1,6 @@
-assets/*
-*.ico
-data/*
+assets/
 __pycache__/
-*.pyc
-*.pyo
-userInfo.txt
-tempCodeRunnerFile.py
-.gitignore
+
+*.ico
+/userInfo.txt
+/autoReg.py
