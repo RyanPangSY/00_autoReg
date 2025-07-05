@@ -12,6 +12,9 @@ Git clone the UI branch
 ```
 git clone -b ui https://github.com/RyanPangSY/00_autoReg.git
 ```
+Turn on auto dismiss cookies consent
+1. Head into `autoReg.py`
+2. Look for line 34, change `cookie_consent = True`
 
 ## Execution
 1. Edit the `userInfo.txt` and fill in your information. The information will be used as the info fill in the registration form.
