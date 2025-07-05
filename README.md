@@ -1,6 +1,8 @@
 # autoReg
 The auto-clicker for Inno-wing Machine room booking system.
 
+## IMPORTANT: Please use the branch `ui` for the updated features
+
 ## Initializing
 The project requires `selenium` module
 ```
