@@ -1,6 +1,6 @@
+*.ico
+userInfo.txt
+
 assets/
 __pycache__/
-
-*.ico
-/userInfo.txt
-/autoReg.py
+.vscode/
