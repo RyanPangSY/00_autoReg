@@ -27,12 +27,15 @@ class AutoRegistor:
         }
         self.debug = args.debug
         self.non_headless = args.non_headless
+        logging.info(f"Debug mode: {'ON' if self.debug else 'OFF'}")
+        logging.info(f"Non_Headless mode: {'ON' if self.non_headless else 'OFF'}")
 
     def startBot(self, lastName, firstName, phoneNum, email, content, url, date, month):
         service = Service()
         options = webdriver.ChromeOptions()
 
         if not self.non_headless:
+            logging.info("Running in headless mode.")
             options.add_argument("--headless=new")  # Use the new headless mode
             options.add_argument("--window-size=960,540")  # Crucial for headless
             options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -50,7 +53,7 @@ class AutoRegistor:
         options.add_argument("--disable-component-extensions-with-background-pages")
         options.add_argument("--disable-features=TranslateUI")
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        options.add_experimental_option('useAutomationExtension', False)
+        options.add_experimental_option('useAutomationExtension', False) # 
         options.add_experimental_option("detach", True) # Keep browser open for inspection
         
         driver = webdriver.Chrome(service=service, options=options)
@@ -58,7 +61,7 @@ class AutoRegistor:
         wait = WebDriverWait(driver, timeout=2, poll_frequency=1, ignored_exceptions=ignored_exceptions)
         cookie_consent = True  # Flag to track if cookie consent has been clicked
 
-        def human_click(element):
+        def human_click(element, click = True):
             try:
                 # Scroll element into view first (helps in headless)
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
@@ -68,8 +71,9 @@ class AutoRegistor:
                 actions.move_to_element(element)
                 actions.move_by_offset(random.randint(-5, 5), random.randint(-5, 5))
                 actions.pause(random.uniform(0.2, 0.5))
-                actions.click()
-                actions.perform()
+                if click:
+                    actions.click()
+                    actions.perform()
             except Exception as e:
                 logging.warning(f"Human click failed, falling back to standard click: {e}")
                 try:
@@ -77,6 +81,12 @@ class AutoRegistor:
                 except Exception:
                     # JS Click fallback for stubborn elements in headless
                     driver.execute_script("arguments[0].click();", element)
+
+        def human_type(element, text):
+            human_click(element)
+            for char in text:
+                element.send_keys(char)
+                time.sleep(random.uniform(0.02, 0.12))
 
         while True:
             driver.get(url)
@@ -158,23 +168,23 @@ class AutoRegistor:
 
             # Enter member information
             last_name_field = wait.until(EC.element_to_be_clickable((By.XPATH, "//div/input[@data-testid='LNAME']")))
-            last_name_field.send_keys(lastName)
+            human_type(last_name_field, lastName)
             time.sleep(time_delay)
 
             first_name_field = wait.until(EC.element_to_be_clickable((By.XPATH, "//div/input[@data-testid='FNAME']")))
-            first_name_field.send_keys(firstName)
+            human_type(first_name_field, firstName)
             time.sleep(time_delay)
 
             phone_field = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@data-testid='PHONE']")))
-            phone_field.send_keys(phoneNum)
+            human_type(phone_field, phoneNum)
             time.sleep(time_delay)
 
             email_field = wait.until(EC.element_to_be_clickable((By.XPATH, "//div/input[@data-testid='EMAIL']")))
-            email_field.send_keys(email)
+            human_type(email_field, email)
             time.sleep(time_delay)
 
             job_field = wait.until(EC.element_to_be_clickable((By.XPATH, "//div/textarea[@data-testid='JOB']")))
-            job_field.send_keys(content)
+            human_type(job_field, content)
             time.sleep(time_delay)
 
             human_click(driver.find_element(By.XPATH, "//div/div/input[@data-testid='Q8']"))
@@ -213,6 +223,9 @@ class AutoRegistor:
 
         if not self.debug:
             driver.quit()
+    
+    def update_headless(self, non_headless):
+        self.non_headless = non_headless
 
     def register_multiple_dates_thread(self, lastName, firstName, phoneNum, email, content, url, dates, month):
         threads = []
@@ -280,7 +293,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Auto Booking Calendar Application")
-    parser.add_argument('-d', '--debug', action='store_false', help='Run the application in debug mode')
+    parser.add_argument('-d', '--debug', action='store_true', help='Run the application in debug mode')
     parser.add_argument( '-n', '--non_headless', action='store_true', help='Run the application in headless mode')
 
     main(parser.parse_args())

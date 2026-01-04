@@ -31,7 +31,7 @@ Before running the bot, ensure you have the following installed:
 *   **Graphical User Interface (GUI)**: Easy-to-use calendar interface for selecting booking dates.
 *   **Multi-Machine Support**: Supports both Waterjet and CNC Milling machines.
 *   **Human-like Interaction**: Simulates human mouse movements and clicks to avoid bot detection.
-*   **Headless Mode**: Can run in the background without opening a visible browser window (default).
+*   **Headless Mode**: Can run in the background without opening a visible browser window (default). **(Currently Disabled: The bot forces a visible window for stability)**
 
 ## Configuration
 
@@ -53,11 +53,13 @@ To start the application with the GUI:
 python main.py
 ```
 
+> **Note**: Headless mode is currently disabled to ensure better compatibility with the booking site's anti-bot measures. The browser window will always open.
+
 ### Command Line Arguments
 
 You can customize the execution using the following flags:
 
-*   **`-n` or `--non_headless`**: Run the browser in non-headless mode (visible window). Useful for debugging or watching the bot work.
+*   **`-n` or `--non_headless`**: Run the browser in non-headless mode (visible window). **(Currently enforced by default)**
     ```bash
     python main.py -n
     ```

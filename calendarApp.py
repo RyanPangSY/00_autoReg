@@ -9,6 +9,7 @@ from threading import Thread
 from autoReg import AutoRegistor
 from dataExtract import DataExtractor # Ensure this is the correct import path for your data extraction function
 import logging
+import argparse
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -23,7 +24,7 @@ class CalendarApp:
         self.selected_dates = []  # List to store selected dates
         self.buttons = {}  # Dictionary to store date buttons/labels
         self.main_frame = tk.Frame(self.root)
-        self.main_frame.pack(expand=True, pady=5)  # Reduced pady
+        self.main_frame.pack(expand=True, pady=5)
         self.refreshing_data = False
         self.last_refreshed_time = str(datetime.datetime.now()).split(".")[0]
         self.monthDict = {
@@ -45,6 +46,9 @@ class CalendarApp:
         # Checkbox variables
         self.waterjet_var = tk.IntVar(value=1)
         self.cnc_var = tk.IntVar(value=0)
+        
+        # Initialize headless variable: 1 if headless (non_headless is False), 0 if visible
+        self.headless_var = tk.IntVar(value=0 if self.non_headless else 1)
 
         # Load availability data from DataExtractor
         self.extractor = DataExtractor()
@@ -56,7 +60,7 @@ class CalendarApp:
         
         # Set up window and styles
         self.root.title(f"Calendar - {self.monthDict[self.months[self.month_index]]} {self.year}")
-        self.root.geometry("450x450")
+        self.root.geometry("450x500")
         self.root.resizable(False, False)  # Fix window size
         
         # Create styles for rounded square buttons and labels
@@ -144,7 +148,7 @@ class CalendarApp:
 
         # Header: Month and Year
         header = tk.Label(self.main_frame, text=f"{current_month_name} {self.year}", font=("Arial", 14, "bold"))
-        header.grid(row=0, column=0, columnspan=7, pady=3)  # Reduced pady
+        header.grid(row=0, column=0, columnspan=7, pady=3)
 
         # Days of the week, starting with Sunday
         days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -200,26 +204,41 @@ class CalendarApp:
         # Month navigation button
         button_text = "Next Month" if self.month_index < len(self.months) - 1 else "Previous Month"
         button_command = self.next_month if self.month_index < len(self.months) - 1 else self.previous_month
-        month_button = ttk.Button(
-            self.main_frame,
-            text=button_text,
-            style="Rounded.TButton",
-            command=button_command
-        )
-        month_button.grid(row=row + 1, column=5, columnspan=2, pady=(2,10))  # Reduced pady
+
+        if self.month_index != 0 and len(self.months) != 1:
+            month_button = ttk.Button(
+                self.main_frame,
+                text=button_text,
+                style="Rounded.TButton",
+                command=button_command
+            )
+            month_button.grid(row=row + 1, column=5, columnspan=2, pady=(2,10))
+        else:
+            lbl = tk.Label(
+                self.main_frame,
+                text="Next Month",
+                **{
+                    "background": "#E7E7E7",  # Gray for unavailable
+                    "font": ("Arial", 10),
+                    "width": 12,
+                    "borderwidth": 2,
+                    "relief": "flat"
+                }
+            )
+            lbl.grid(row=row + 1, column=5, columnspan=2, pady=(2,10))
 
         # Note about availability, centered with smaller font
         note_label = tk.Label(self.main_frame, text="Green: Available, Gray: Unavailable", font=("Arial", 8))
-        note_label.grid(row=row + 1, column=0, columnspan=3, pady=(2,10))  # Reduced pady
+        note_label.grid(row=row + 1, column=0, columnspan=3, pady=(2,10))
 
         # Label to display selected dates
         selected_text = f"Selected Dates: {', '.join(str(day) for day in sorted(self.selected_dates))}" if self.selected_dates else "Selected Dates: None"
         selected_label = tk.Label(self.main_frame, text=selected_text, wraplength=350, font=("Arial", 10))
-        selected_label.grid(row=row + 2, column=0, columnspan=7, pady=(0,2))  # Reduced pady
+        selected_label.grid(row=row + 2, column=0, columnspan=7, pady=(0,2))
 
         # Equipment selection checkboxes
         checkbox_frame = tk.Frame(self.main_frame)
-        checkbox_frame.grid(row=row + 3, column=0, columnspan=7, pady=(0,2))  # Reduced pady
+        checkbox_frame.grid(row=row + 3, column=0, columnspan=7, pady=(0,2))
         tk.Checkbutton(
             checkbox_frame,
             text="ProtoMAX Waterjet",
@@ -235,6 +254,16 @@ class CalendarApp:
             font=("Arial", 10)
         ).pack(side=tk.LEFT, padx=10)
 
+        # Headless option checkbox
+        tk.Checkbutton(
+            self.main_frame,
+            text="Headless Mode",
+            state=tk.DISABLED,  # Disabled checkbox
+            variable=self.headless_var,
+            command=self.toggle_headless_option,
+            font=("Arial", 10)
+        ).grid(row=row + 4, column=0, columnspan=7, pady=(10,0))
+
         # Register button
         register_button = ttk.Button(
             self.main_frame,
@@ -242,7 +271,7 @@ class CalendarApp:
             style="Bold.TButton",
             command=self.register
         )
-        register_button.grid(row=row + 4, column=0, columnspan=7, pady=(0,10))  # Reduced pady
+        register_button.grid(row=row + 5, column=0, columnspan=7, pady=(0,10))
 
         refresh_button = ttk.Button(
             self.main_frame,
@@ -250,9 +279,9 @@ class CalendarApp:
             style="Rounded.TButton",
             command=self.refresh_data
         )
-        refresh_button.grid(row=row + 5, column=0, columnspan=7, pady=0)  # Reduced pady
+        refresh_button.grid(row=row + 6, column=0, columnspan=7, pady=0)
         refreshing_label = tk.Label(self.main_frame, fg="green", text="Refreshing data" if self.refreshing_data else f"Last refreshed at: {self.last_refreshed_time}", font=("Arial", 8))
-        refreshing_label.grid(row=row + 6, column=0, columnspan=7, pady=0)  # Reduced pady
+        refreshing_label.grid(row=row + 7, column=0, columnspan=7, pady=(20,0))
 
     def select_waterjet(self):
         # Ensure only one checkbox is selected
@@ -276,6 +305,12 @@ class CalendarApp:
             return # Do nothing if CNC is deselected
         self.availability_data = self.load_availability_data()
         self.update_calendar()
+
+    def toggle_headless_option(self):
+        is_headless = self.headless_var.get()
+        self.non_headless = not is_headless
+        self.registor.update_headless(self.non_headless)
+        logging.info(f"Headless mode set to: {'ON' if is_headless else 'OFF'}")
 
     def on_enter(self, day):
         # Change to blue on hover (only for buttons)
@@ -302,7 +337,7 @@ class CalendarApp:
 
     def update_selected_label(self):
         selected_text = f"Selected Dates: {', '.join(str(day) for day in sorted(self.selected_dates))}" if self.selected_dates else "Selected Dates: None"
-        for widget in self.main_frame.grid_slaves(row=self.main_frame.grid_size()[1] - 5, column=0):
+        for widget in self.main_frame.grid_slaves(row=self.main_frame.grid_size()[1] - 6, column=0):
             widget.config(text=selected_text)
 
     def next_month(self):
@@ -369,6 +404,7 @@ class CalendarApp:
             dates.append(date_str)
 
         # Use AutoRegistor object to register
+        self.selected_dates.clear()
         logging.info(f"Starting registration for {self.equipment_dict[equipment][0]}...")
         self.registor.register_multiple_dates(
             lastName=user_info.get("Last Name", ""),
@@ -380,3 +416,20 @@ class CalendarApp:
             dates=dates,
             month=self.month
         )
+
+def main(args):
+    app = CalendarApp(args)
+
+    # # Initial calendar setup
+    # app.update_calendar()
+
+    # # Start the Tkinter main loop
+    # app.root.iconbitmap("autoReg_icon.ico")
+    # app.root.mainloop()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Auto Booking Calendar Application")
+    parser.add_argument('-d', '--debug', action='store_true', help='Run the application in debug mode')
+    parser.add_argument( '-n', '--non_headless', action='store_true', help='Run the application in headless mode')
+
+    main(parser.parse_args())

@@ -41,7 +41,9 @@ class DataExtractor:
 
         self.service = Service()
         self.options = webdriver.ChromeOptions()
-        self.options.add_argument("--headless")  # Run in headless mode
+        self.options.add_argument("--headless=new")  # Run in new headless mode
+        self.options.add_argument("--window-size=1920,1080")
+        self.options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         self.options.add_argument("--disable-logging")
         self.options.add_argument("--disable-dev-shm-usage")
         self.options.add_argument("--no-sandbox")
