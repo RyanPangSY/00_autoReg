@@ -205,27 +205,16 @@ class CalendarApp:
         button_text = "Next Month" if self.month_index < len(self.months) - 1 else "Previous Month"
         button_command = self.next_month if self.month_index < len(self.months) - 1 else self.previous_month
 
-        if self.month_index != 0 and len(self.months) != 1:
-            month_button = ttk.Button(
-                self.main_frame,
-                text=button_text,
-                style="Rounded.TButton",
-                command=button_command
-            )
-            month_button.grid(row=row + 1, column=5, columnspan=2, pady=(2,10))
-        else:
-            lbl = tk.Label(
-                self.main_frame,
-                text="Next Month",
-                **{
-                    "background": "#E7E7E7",  # Gray for unavailable
-                    "font": ("Arial", 10),
-                    "width": 12,
-                    "borderwidth": 2,
-                    "relief": "flat"
-                }
-            )
-            lbl.grid(row=row + 1, column=5, columnspan=2, pady=(2,10))
+        month_button = ttk.Button(
+            self.main_frame,
+            text=button_text,
+            style="Rounded.TButton",
+            command=button_command
+        )
+        month_button.grid(row=row + 1, column=5, columnspan=2, pady=(2,10))
+
+        if len(self.months) == 1:
+            month_button.config(state=tk.DISABLED)
 
         # Note about availability, centered with smaller font
         note_label = tk.Label(self.main_frame, text="Green: Available, Gray: Unavailable", font=("Arial", 8))
@@ -258,7 +247,7 @@ class CalendarApp:
         tk.Checkbutton(
             self.main_frame,
             text="Headless Mode",
-            state=tk.DISABLED,  # Disabled checkbox
+            # state=tk.DISABLED,  # Disabled checkbox
             variable=self.headless_var,
             command=self.toggle_headless_option,
             font=("Arial", 10)
@@ -416,6 +405,8 @@ class CalendarApp:
             dates=dates,
             month=self.month
         )
+
+        self.update_calendar()
 
 def main(args):
     app = CalendarApp(args)

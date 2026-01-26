@@ -89,6 +89,9 @@ class AutoRegistor:
                 time.sleep(random.uniform(0.02, 0.12))
 
         while True:
+            date_id = f"20{date[0:2]}-{date[2:4]}-{date[4:6]}"
+            url += f'?jumpDate={date_id}'
+
             driver.get(url)
             driver.implicitly_wait(10)
 
@@ -101,21 +104,28 @@ class AutoRegistor:
                     cookie_consent = False
                 except (NoSuchElementException, StaleElementReferenceException, TimeoutException):
                     logging.warning("Cookie consent button not found or already clicked.")
+            
+            # # Navigate to booking page
+            # try:
+            #     driver.execute_script("arguments[0].click();", wait.until(EC.element_to_be_clickable((By.XPATH, "//button[@aria-label='View month']"))))
+            #     driver.implicitly_wait(1)
+            # except (NoSuchElementException, TimeoutException):
+            #     logging.error("Calendar element not found, quitting driver.")
+            #     driver.quit()
 
-            # Navigate to correct month
-            while True:
-                actual_month = driver.find_element(By.XPATH, "//div[@data-testid='monthView']/div/div/div/div/span").text.split(" ")[0]
-                if self.inv_monthDict[actual_month] != month:
-                    if self.inv_monthDict[actual_month] < month:
-                        human_click(driver.find_element(By.XPATH, "//button[@aria-label='Next Month']"))
-                    else:
-                        human_click(driver.find_element(By.XPATH, "//button[@aria-label='Previous Month']"))
-                    driver.implicitly_wait(1)
-                    continue
-                break
+            # # Navigate to correct month
+            # while True:
+            #     actual_month = driver.find_element(By.XPATH, "//div[@data-testid='monthView']/div/div/div/div/span").text.split(" ")[0]
+            #     if self.inv_monthDict[actual_month] != month:
+            #         if self.inv_monthDict[actual_month] < month:
+            #             human_click(driver.find_element(By.XPATH, "//button[@aria-label='Next Month']"))
+            #         else:
+            #             human_click(driver.find_element(By.XPATH, "//button[@aria-label='Previous Month']"))
+            #         driver.implicitly_wait(1)
+            #         continue
+            #     break
 
             # Select date
-            date_id = f"20{date[0:2]}-{date[2:4]}-{date[4:6]}"
             for i in range(3):
                 try:
                     wait.until(EC.presence_of_element_located((By.XPATH, f"//button[@id='{date_id}']")))
@@ -141,7 +151,7 @@ class AutoRegistor:
                 return
 
             logging.info(f"Thread {date_id}: Clicked date {date_id}")
-            target_elements = driver.find_elements(By.CLASS_NAME, "avl_slot-free")
+            target_elements = driver.find_elements(By.XPATH, '//button[contains(@class, "avl_slot-free")]')
             logging.info(f"Thread {date_id}: Possible time slots: {len(target_elements)}")
 
             if not target_elements:
@@ -150,14 +160,20 @@ class AutoRegistor:
 
             time_slot = target_elements[0]
             time_slot_text = f"{time_slot.text} - {int(time_slot.text[0:2])+1}:00"
-            human_click(time_slot)
+            driver.execute_script("arguments[0].click();", time_slot)
 
             time_delay = 0.25
             
             # Select project
-            wait.until(EC.presence_of_element_located((By.XPATH, '//div/div/select[@data-testid="Q5"]')))
-            logging.info(f"Thread {date_id}: Found project select")
-            project = driver.find_element(By.XPATH, '//div/div/select[@data-testid="Q5"]')
+            try:
+                wait.until(EC.presence_of_element_located((By.XPATH, '//div/div/div[@data-testid="Q5_group"]')))
+                logging.info(f"Thread {date_id}: Found project select")
+                project = driver.find_element(By.XPATH, '//div/div/div[@data-testid="Q5_group"]')
+            except TimeoutException:
+                self.load_all_elements(driver)
+                logging.error(f"Thread {date_id}: Project select not found, quitting driver.")
+                driver.quit()
+                return
             
             human_click(project)
 

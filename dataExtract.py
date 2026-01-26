@@ -62,7 +62,17 @@ class DataExtractor:
         self.driver.implicitly_wait(1)
 
         # finding the select time calendar element and extracting the data
-        wait.until(EC.presence_of_element_located((By.XPATH, self.div_xpath + "/button/span")))
+        try:
+            wait.until(EC.presence_of_element_located((By.XPATH, self.div_xpath + "/button/span")))
+        except TimeoutException:
+            try:
+                self.driver.execute_script("arguments[0].click();", wait.until(EC.element_to_be_clickable((By.XPATH, "//button[@aria-label='View month']"))))
+                self.driver.implicitly_wait(1)
+            except (NoSuchElementException, TimeoutException):
+                logging.error("Calendar element not found, quitting driver.")
+                self.driver.quit()
+                return {}
+
         time.sleep(2.5)  # wait for the calendar to load
 
         calendar_data = self.driver.find_elements(By.XPATH, self.div_xpath + "/button")
