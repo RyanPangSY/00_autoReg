@@ -62,31 +62,41 @@ class AutoRegistor:
         cookie_consent = True  # Flag to track if cookie consent has been clicked
 
         def human_click(element, click = True):
-            try:
-                # Scroll element into view first (helps in headless)
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-                time.sleep(0.1)
-                
-                actions = ActionChains(driver)
-                actions.move_to_element(element)
-                actions.move_by_offset(random.randint(-5, 5), random.randint(-5, 5))
-                actions.pause(random.uniform(0.2, 0.5))
-                if click:
-                    actions.click()
-                    actions.perform()
-            except Exception as e:
-                logging.warning(f"Human click failed, falling back to standard click: {e}")
+            # Scroll element into view first (helps in headless)
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+            time.sleep(0.1)
+            
+            if not self.non_headless:
                 try:
                     element.click()
                 except Exception:
                     # JS Click fallback for stubborn elements in headless
                     driver.execute_script("arguments[0].click();", element)
+            else:
+                try:
+                    actions = ActionChains(driver)
+                    actions.move_to_element(element)
+                    actions.move_by_offset(random.randint(-5, 5), random.randint(-5, 5))
+                    actions.pause(random.uniform(0.2, 0.5))
+                    if click:
+                        actions.click()
+                        actions.perform()
+                except Exception as e:
+                    logging.warning(f"Human click failed, falling back to standard click: {e}")
+                    try:
+                        element.click()
+                    except Exception:
+                        # JS Click fallback for stubborn elements in headless
+                        driver.execute_script("arguments[0].click();", element)
 
         def human_type(element, text):
             human_click(element)
-            for char in text:
-                element.send_keys(char)
-                time.sleep(random.uniform(0.02, 0.12))
+            if not self.non_headless:
+                element.send_keys(text)
+            else:
+                for char in text:
+                    element.send_keys(char)
+                    time.sleep(random.uniform(0.01, 0.1))
 
         while True:
             date_id = f"20{date[0:2]}-{date[2:4]}-{date[4:6]}"

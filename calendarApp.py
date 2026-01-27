@@ -360,6 +360,8 @@ class CalendarApp:
         self.update_calendar()
 
     def register(self):
+        self.update_calendar()
+
         if not self.selected_dates:
             logging.warning("No dates selected for registration.")
             return
@@ -405,8 +407,6 @@ class CalendarApp:
             dates=dates,
             month=self.month
         )
-
-        self.update_calendar()
 
 def main(args):
     app = CalendarApp(args)
