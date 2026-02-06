@@ -217,7 +217,17 @@ class AutoRegistor:
             driver.implicitly_wait(1.5)
             
             # Submit form
+            submit_count = 0
             while True:
+                submit_count += 1
+                if submit_count > 4:
+                    logging.error(f"Thread {date_id}: Exceeded maximum submission attempts, quitting driver.")
+                    logging.info(f"Resort to non-headless mode.")
+                    driver.quit()
+                    self.non_headless = True
+                    self.startBot(lastName, firstName, phoneNum, email, content, url, date, month)
+
+                    break
                 try:
                     confirm_btn = driver.find_element(By.XPATH, "//button[@data-testid='confirm_button']")
                     human_click(confirm_btn)
@@ -226,6 +236,7 @@ class AutoRegistor:
                     try:
                         refresh_button_xpath = "//button[span[contains(text(), 'Refresh the page')]]"
                         refresh_btn = WebDriverWait(driver, 2).until(EC.presence_of_element_located((By.XPATH, refresh_button_xpath)))
+                        driver.implicitly_wait(1)
                         logging.warning(f"Thread {date_id}: Captcha error detected. Clicking 'Refresh the page'.")
                         human_click(refresh_btn)
                         continue  # Retry submission
@@ -236,7 +247,6 @@ class AutoRegistor:
                 except Exception:
                     logging.warning(f"Thread {date_id}: Failed to click confirm button")
                     driver.implicitly_wait(0.5)
-
 
             try:
                 wait = WebDriverWait(driver, timeout=8, poll_frequency=1, ignored_exceptions=ignored_exceptions)
